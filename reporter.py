@@ -43,6 +43,7 @@ else:
 
 logging.info("getting reports for these projects: %s" % projects)
 
+
 def get_project_id(project_name):
     project_request = requests.get(args.url+"/projects/?search=%s" % project_name, headers=headers, timeout=5)
     if project_request.status_code != 200:
@@ -53,6 +54,7 @@ def get_project_id(project_name):
         for project in projects:
             if project['path'] == project_name:
                 return project['id']
+
 
 night_runs = []
 # Get outputs
