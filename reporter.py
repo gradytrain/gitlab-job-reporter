@@ -9,13 +9,16 @@ from jinja2 import Template
 import codecs
 from datetime import datetime, timedelta
 
-headers = {"Authorization": "Bearer {0}".format(os.getenv("GITLAB_PAT"))}
+HEADERS = {"Authorization": "Bearer {0}".format(os.getenv("GITLAB_PAT"))}
+END_LOG_NO_ERROR = "Logging stopped, Reason: exit code 0"
+END_LOG_ERROR = "Logging stopped, Reason: Error"
 
 # setup logging
 now = datetime.now()
 timestamp = now.strftime('%m-%d-%Y-%H%M')
 logger = logging.getLogger(__name__)
-log_name = "package-utility-runtime-logs-%s.log" % timestamp
+script_name = "nightly-job-reporter"
+log_name = "{0}-runtime-logs-{1}.log".format(script_name, timestamp)
 if os.getenv("CI"):
     log_path = log_name
 else:
@@ -38,16 +41,19 @@ if os.path.exists("repos.txt"):
 else:
     message = "repos.txt file could not be found in project directory"
     logging.error(message)
+    logging.info(END_LOG_ERROR)
     raise Exception(message)
 
 logging.info("getting reports for these projects: %s" % projects)
 
 
 def get_project_id(project_name):
-    project_request = requests.get(args.url+"/projects/?search=%s" % project_name, headers=headers, timeout=5)
+    project_request = requests.get(args.url+"/projects/?search=%s" % project_name, headers=HEADERS, timeout=5)
     if project_request.status_code != 200:
-        print("Was not 200, was: %s" % project_request.status_code)
-        exit(1)
+        message = "Was not 200, was: %s" % project_request.status_code
+        logging.error(message)
+        logging.info(END_LOG_ERROR)
+        raise Exception(message)
     else:
         projects = project_request.json()
         for project in projects:
@@ -62,10 +68,12 @@ for project in projects:
     id = get_project_id(project)
 
     # with project id, get all the project pipelines
-    pipelines_request = requests.get(args.url+"/projects/%s/pipelines" % id, headers=headers, timeout=5)
+    pipelines_request = requests.get(args.url+"/projects/%s/pipelines" % id, headers=HEADERS, timeout=5)
     if pipelines_request.status_code != 200:
-        print("Was not 200, was: %s" % pipelines_request.status_code)
-        exit(1)
+        message = "Was not 200, was: %s" % pipelines_request.status_code
+        logging.error(message)
+        logging.info(END_LOG_ERROR)
+        raise Exception(message)
     else:
         pipelines = pipelines_request.json()
         scheduled_pipelines = []
@@ -79,10 +87,12 @@ for project in projects:
 reports = []
 # create the report dictionary object
 for run in night_runs:
-    project_request = requests.get(args.url+"/projects/%s" % run['project_id'], headers=headers, timeout=5)
+    project_request = requests.get(args.url+"/projects/%s" % run['project_id'], headers=HEADERS, timeout=5)
     if project_request.status_code != 200:
-        print("Was not 200, was: %s" % project_request.status_code)
-        exit(1)
+        message = "Was not 200, was: %s" % project_request.status_code
+        logging.error(message)
+        logging.info(END_LOG_ERROR)
+        raise Exception(message)
     else:
         dtobj = datetime.strptime(run['created_at'], '%Y-%m-%dT%H:%M:%S.%fZ')
         report_timestamp = dtobj.strftime('%m-%d-%Y')
@@ -111,3 +121,6 @@ fq_path = os.path.join(file_path, report_title)
 output_file = codecs.open(fq_path, "w", "utf-8")
 output_file.write(rendered_file)
 output_file.close()
+
+logging.info(END_LOG_NO_ERROR)
+exit(0)
