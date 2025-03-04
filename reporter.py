@@ -12,14 +12,14 @@ from datetime import datetime, timedelta
 headers = {"Authorization": "Bearer {0}".format(os.getenv("GITLAB_PAT"))}
 
 # setup logging
-now = datetime.datetime.now()
+now = datetime.now()
 timestamp = now.strftime('%m-%d-%Y-%H%M')
 logger = logging.getLogger(__name__)
 log_name = "package-utility-runtime-logs-%s.log" % timestamp
 if os.getenv("CI"):
     log_path = log_name
 else:
-    logp_ath = 'logs/%s' % log_name
+    log_path = 'logs/%s' % log_name
 logging.basicConfig(filename=log_path, level=logging.INFO)
 logger.info('Logging Start for package utility script')
 
@@ -34,8 +34,7 @@ projects = []
 if os.path.exists("repos.txt"):
     logging.info("Found repos.txt file")
     with open("repos.txt", "r") as repos_file:
-        for project in repos_file:
-            projects.append(project)
+        projects = repos_file.read().splitlines()
 else:
     message = "repos.txt file could not be found in project directory"
     logging.error(message)
