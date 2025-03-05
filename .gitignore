@@ -1,6 +1,7 @@
 # ignore any further changes to repos list
-repos.txt
+.repoconfig
 
 # ignore folders with local data like logs and reports
 /logs
 /reports
+/.vscode

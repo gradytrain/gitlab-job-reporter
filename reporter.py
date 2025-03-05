@@ -13,6 +13,8 @@ HEADERS = {"Authorization": "Bearer {0}".format(os.getenv("GITLAB_PAT"))}
 END_LOG_NO_ERROR = "Logging stopped, Reason: exit code 0"
 END_LOG_ERROR = "Logging stopped, Reason: Error"
 
+project_path = os.path.dirname(os.path.abspath(__file__))
+
 # setup logging
 now = datetime.now()
 timestamp = now.strftime('%m-%d-%Y-%H%M')
@@ -22,7 +24,7 @@ log_name = "{0}-runtime-logs-{1}.log".format(script_name, timestamp)
 if os.getenv("CI"):
     log_path = log_name
 else:
-    log_path = 'logs/%s' % log_name
+    log_path = '{0}/logs/{1}'.format(project_path, log_name)
 logging.basicConfig(filename=log_path, level=logging.INFO)
 logger.info('Logging Start for package utility script')
 
@@ -33,13 +35,14 @@ args = parser.parse_args()
 
 logging.info("Using url: %s" % args.url)
 projects = []
+repoconfig_file_path = "%s/.repoconfig" % project_path
 # get projects listing
-if os.path.exists("repos.txt"):
-    logging.info("Found repos.txt file")
-    with open("repos.txt", "r") as repos_file:
+if os.path.exists(repoconfig_file_path):
+    logging.info("Found repos file")
+    with open(repoconfig_file_path, "r") as repos_file:
         projects = repos_file.read().splitlines()
 else:
-    message = "repos.txt file could not be found in project directory"
+    message = ".repoconfig file could not be found in project directory"
     logging.error(message)
     logging.info(END_LOG_ERROR)
     raise Exception(message)
@@ -48,7 +51,7 @@ logging.info("getting reports for these projects: %s" % projects)
 
 
 def get_project_id(project_name):
-    project_request = requests.get(args.url+"/projects/?search=%s" % project_name, headers=HEADERS, timeout=5)
+    project_request = requests.get("{0}/projects/?search={1}".format(args.url, project_name), headers=HEADERS, timeout=5)
     if project_request.status_code != 200:
         message = "Was not 200, was: %s" % project_request.status_code
         logging.error(message)
@@ -68,7 +71,7 @@ for project in projects:
     id = get_project_id(project)
 
     # with project id, get all the project pipelines
-    pipelines_request = requests.get(args.url+"/projects/%s/pipelines" % id, headers=HEADERS, timeout=5)
+    pipelines_request = requests.get("{0}/projects/{1}/pipelines".format(args.url, id), headers=HEADERS, timeout=5)
     if pipelines_request.status_code != 200:
         message = "Was not 200, was: %s" % pipelines_request.status_code
         logging.error(message)
@@ -87,7 +90,7 @@ for project in projects:
 reports = []
 # create the report dictionary object
 for run in night_runs:
-    project_request = requests.get(args.url+"/projects/%s" % run['project_id'], headers=HEADERS, timeout=5)
+    project_request = requests.get("{0}/projects/{1}".format(args.url, run['project_id']), headers=HEADERS, timeout=5)
     if project_request.status_code != 200:
         message = "Was not 200, was: %s" % project_request.status_code
         logging.error(message)
@@ -109,12 +112,12 @@ for run in night_runs:
         reports.append(report)
 
 # create file using jinja2 template
-with open('template.md', 'r') as file:
+with open('%s/template.md' % project_path, 'r') as file:
     template = Template(file.read(), trim_blocks=True)
 rendered_file = template.render(reports=reports)
 
 # output the file in the respective week and with a nice timestamp
-file_path = "reports/week%s" % datetime.now().isocalendar().week
+file_path = "{0}/reports/week{1}".format(project_path, datetime.now().isocalendar().week)
 Path(file_path).mkdir(parents=True, exist_ok=True)
 report_title = "Nightly_Run_Report_%s.md" % report_timestamp
 fq_path = os.path.join(file_path, report_title)
