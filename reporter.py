@@ -28,6 +28,17 @@ else:
 logging.basicConfig(filename=log_path, level=logging.INFO)
 logger.info('Logging Start for package utility script')
 
+
+def output_and_log_message(message, exception=False):
+    if exception is False:
+        logging.info(message)
+        print(message)
+    else:
+        logging.error(message)
+        logging.info(END_LOG_ERROR)
+        raise Exception(message)
+
+
 # Get arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--url', '-u', required=True, help="base url or the ci api url")
@@ -41,11 +52,10 @@ if os.path.exists(repoconfig_file_path):
     logging.info("Found repos file")
     with open(repoconfig_file_path, "r") as repos_file:
         projects = repos_file.read().splitlines()
+    if not projects:
+        output_and_log_message("Repos file was empty, please add project names and try again", exception=True)
 else:
-    message = ".repoconfig file could not be found in project directory"
-    logging.error(message)
-    logging.info(END_LOG_ERROR)
-    raise Exception(message)
+    output_and_log_message(".repoconfig file could not be found in project directory")
 
 logging.info("getting reports for these projects: %s" % projects)
 
@@ -53,10 +63,7 @@ logging.info("getting reports for these projects: %s" % projects)
 def get_project_id(project_name):
     project_request = requests.get("{0}/projects/?search={1}".format(args.url, project_name), headers=HEADERS, timeout=5)
     if project_request.status_code != 200:
-        message = "Was not 200, was: %s" % project_request.status_code
-        logging.error(message)
-        logging.info(END_LOG_ERROR)
-        raise Exception(message)
+        output_and_log_message("Getting project ID was not 200, was: %s" % project_request.status_code)
     else:
         projects = project_request.json()
         for project in projects:
@@ -73,10 +80,7 @@ for project in projects:
     # with project id, get all the project pipelines
     pipelines_request = requests.get("{0}/projects/{1}/pipelines".format(args.url, id), headers=HEADERS, timeout=5)
     if pipelines_request.status_code != 200:
-        message = "Was not 200, was: %s" % pipelines_request.status_code
-        logging.error(message)
-        logging.info(END_LOG_ERROR)
-        raise Exception(message)
+        output_and_log_message("Getting pipelines request was not 200, was: %s" % pipelines_request.status_code)
     else:
         pipelines = pipelines_request.json()
         scheduled_pipelines = []
@@ -92,10 +96,7 @@ reports = []
 for run in night_runs:
     project_request = requests.get("{0}/projects/{1}".format(args.url, run['project_id']), headers=HEADERS, timeout=5)
     if project_request.status_code != 200:
-        message = "Was not 200, was: %s" % project_request.status_code
-        logging.error(message)
-        logging.info(END_LOG_ERROR)
-        raise Exception(message)
+        output_and_log_message("Request for project name was not 200, was: %s" % project_request.status_code)
     else:
         dtobj = datetime.strptime(run['created_at'], '%Y-%m-%dT%H:%M:%S.%fZ')
         report_timestamp = dtobj.strftime('%m-%d-%Y')
