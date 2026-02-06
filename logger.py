@@ -2,8 +2,8 @@
 
 import logging
 import os
-from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
+
 
 class MyLogger:
     END_LOG_NO_ERROR = "Logging stopped, Reason: exit code 0"
@@ -15,11 +15,11 @@ class MyLogger:
         self.timestamp = self.now.strftime('%m-%d-%Y-%H%M')
 
         # path determination
-        self.project_path = os.getcwd() # get script run directory
-        self.log_name = "{0}-runtime-logs-{1}.log".format(self.script_name, self.timestamp)
-
-        # project_path = os.path.dirname(os.path.abspath(__file__))
-        # logger = logging.getLogger(__name__)
+        self.project_path = os.getcwd()  # get script run directory
+        self.log_name = "{0}-runtime-logs-{1}.log".format(
+            self.script_name,
+            self.timestamp
+        )
 
         if os.getenv("CI"):
             self.log_path = self.log_name
@@ -29,15 +29,14 @@ class MyLogger:
                 os.makedirs(log_dir)
             self.log_path = os.path.join(log_dir, self.log_name)
 
-
-
-            # log_path = '{0}/logs/{1}'.format(project_path, log_name)
-
         # Configure Logging
-        logging.basicConfig(filename=self.log_path, level=log_level, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        logging.basicConfig(
+            filename=self.log_path,
+            level=log_level,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
         self.logger = logging.getLogger(self.script_name)
         self.logger.info('Logging Start for %s' % self.script_name)
-
 
     def log(self, message, exception=False):
         if exception is False:
